@@ -95,4 +95,34 @@ jobs:
           }
           # 执行目标命令
           python py2sec.py -f test1.py -r
+
+          # 查找生成的PYD文件（打印路径方便调试）
+          Write-Host "=== Finding PYD files ==="
+          $pyd_files = Get-ChildItem -Recurse -Filter "*.pyd"
+          if ($pyd_files.Count -eq 0) {
+              Write-Error "No PYD files found after compilation!"
+              exit 1
+          }
+          # 打印所有PYD文件路径
+          foreach ($file in $pyd_files) {
+              Write-Host "Found PYD file: $($file.FullName)"
+          }
+          # 将PYD文件复制到统一目录（方便上传）
+          New-Item -ItemType Directory -Path "./pyd_output" -Force
+          Copy-Item -Path $pyd_files.FullName -Destination "./pyd_output/"
+          Write-Host "PYD files copied to ./pyd_output/"
+        shell: pwsh
+
+      # 步骤7：上传PYD文件作为构建产物（核心新增步骤）
+      - name: Upload PYD file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test1-pyd-file  # 产物名称（下载时显示）
+          path: ./pyd_output/*.pyd  # 要上传的PYD文件路径
+          retention-days: 30  # 产物保留30天（可按需调整）
+
+      # 步骤8：（可选）列出上传目录文件，确认上传内容
+      - name: List uploaded files
+        run: |
+          Get-ChildItem -Path ./pyd_output
         shell: pwsh
