@@ -87,12 +87,12 @@ jobs:
               exit 1
           }
           # 确认example/test1.py路径存在
-          if (Test-Path "example/test1.py") {
-              Write-Host "example/test1.py found"
+          if (Test-Path "test1.py") {
+              Write-Host "test1.py found"
           } else {
-              Write-Host "example/test1.py not found"
+              Write-Host "test1.py not found"
               exit 1
           }
           # 执行目标命令
-          python py2sec.py -f example/test1.py -r
+          python py2sec.py -f test1.py -r
         shell: pwsh
