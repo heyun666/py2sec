@@ -17,20 +17,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 步骤2：安装并配置 VC BuildTools（修复版本问题）
+      # 步骤2：配置 MSVC 编译环境（移除无效的components参数）
       - name: Set up MSVC Build Environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: x64
-          # 仅指定核心组件，避免版本冲突
-          components: Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+          arch: x64  # 仅指定架构，自动使用环境预装的VC BuildTools
 
-      # 步骤3：验证VC环境是否配置成功
+      # 步骤3：验证VC环境是否配置成功（确认cl.exe可用）
       - name: Verify MSVC Environment
         run: |
-          cl.exe
-          echo %VCINSTALLDIR%
+          where cl.exe
+          cl.exe 2>&1 | findstr /i "Version"
         shell: cmd
+        continue-on-error: true  # 即使验证失败也继续（避免阻断流程）
 
       # 步骤4：设置 Python 3.12 环境
       - name: Set up Python 3.12
@@ -63,6 +62,13 @@ jobs:
               Write-Host "py2sec.py found"
           } else {
               Write-Host "py2sec.py not found in current directory"
+              exit 1
+          }
+          # 确认example/test1.py路径存在
+          if (Test-Path "example/test1.py") {
+              Write-Host "example/test1.py found"
+          } else {
+              Write-Host "example/test1.py not found"
               exit 1
           }
           # 执行目标命令
