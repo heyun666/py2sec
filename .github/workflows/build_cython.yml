@@ -21,8 +21,6 @@ jobs:
       - name: Set up MSVC Build Environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          # 使用兼容的工具集版本（不指定具体小版本，自动匹配环境中的最新版）
-          toolset: 14.3
           arch: x64
           # 仅指定核心组件，避免版本冲突
           components: Microsoft.VisualStudio.Component.VC.Tools.x86.x64
