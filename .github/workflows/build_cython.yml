@@ -8,52 +8,59 @@ on:
 # 工作流任务配置
 jobs:
   build-and-run:
-    # 指定运行环境为 Windows 10
-    runs-on: windows-2022  # GitHub Actions 中 windows-2022 对应 Windows Server 2022，兼容 Windows 10 环境
-    timeout-minutes: 30  # 设置超时时间，避免无限运行
+    # 指定运行环境为 Windows 10 兼容的 Windows Server 2022
+    runs-on: windows-2022
+    timeout-minutes: 30
 
     steps:
       # 步骤1：拉取代码仓库到运行环境
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 步骤2：安装 Visual Studio Build Tools (VC BuildTools)
-      - name: Install VC BuildTools
+      # 步骤2：安装并配置 VC BuildTools（修复版本问题）
+      - name: Set up MSVC Build Environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          # 指定需要安装的组件，包含C++构建必需的工具链
-          toolset: 14.38
+          # 使用兼容的工具集版本（不指定具体小版本，自动匹配环境中的最新版）
+          toolset: 14.3
           arch: x64
-          # 安装VC BuildTools核心组件
-          components: Microsoft.VisualStudio.Component.VC.Tools.x86.x64,Microsoft.VisualStudio.Component.Windows10SDK.19041
+          # 仅指定核心组件，避免版本冲突
+          components: Microsoft.VisualStudio.Component.VC.Tools.x86.x64
 
-      # 步骤3：设置 Python 3.12 环境
+      # 步骤3：验证VC环境是否配置成功
+      - name: Verify MSVC Environment
+        run: |
+          cl.exe
+          echo %VCINSTALLDIR%
+        shell: cmd
+
+      # 步骤4：设置 Python 3.12 环境
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # 指定Python版本
-          architecture: 'x64'     # 64位架构
+          python-version: '3.12'
+          architecture: 'x64'
 
-      # 步骤4：验证Python和pip版本，确保环境正确
+      # 步骤5：验证Python和pip版本
       - name: Verify Python installation
         run: |
           python --version
           pip --version
 
-      # 步骤5：升级pip并安装Cython
+      # 步骤6：升级pip并安装Cython
       - name: Install Cython
         run: |
           python -m pip install --upgrade pip
           pip install cython
 
-      # 步骤6：验证Cython安装
+      # 步骤7：验证Cython安装
       - name: Verify Cython installation
         run: python -c "import cython; print('Cython version:', cython.__version__)"
 
-      # 步骤7：执行目标Python脚本
+      # 步骤8：执行目标Python脚本
       - name: Run py2sec.py script
         run: |
-          # 确认脚本路径存在（可选，用于调试）
+          # 确认脚本路径存在
           if (Test-Path "py2sec.py") {
               Write-Host "py2sec.py found"
           } else {
