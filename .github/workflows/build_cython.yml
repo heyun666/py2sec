@@ -44,6 +44,28 @@ jobs:
           python --version
           pip --version
 
+      # 步骤5：安装 distutils 替代包（核心兼容步骤）
+      - name: Install distutils replacement for Python 3.12
+        run: |
+          # 安装官方维护的 setuptools 内置 distutils 兼容包
+          python -m pip install --upgrade pip setuptools
+          # 创建 distutils 兼容链接（关键：让代码能找到 distutils 模块）
+          python -c "import os, setuptools; 
+          distutils_path = os.path.join(os.path.dirname(setuptools.__file__), '_distutils');
+          target_path = os.path.join(os.path.dirname(os.__file__), 'distutils');
+          if not os.path.exists(target_path):
+              os.symlink(distutils_path, target_path);
+              print(f'Created symlink: {target_path} -> {distutils_path}')
+          else:
+              print('distutils symlink already exists')"
+        shell: pwsh
+
+      # 步骤6：验证 distutils 兼容性
+      - name: Verify distutils compatibility
+        run: |
+          python -c "import distutils; print('distutils imported successfully!')"
+          python -c "from distutils.core import setup; print('distutils.setup imported successfully!')"
+
       # 步骤6：升级pip并安装Cython
       - name: Install Cython
         run: |
