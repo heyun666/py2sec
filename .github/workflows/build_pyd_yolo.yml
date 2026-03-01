@@ -1,0 +1,132 @@
+# 工作流名称
+name: Run py2sec Script on Windows
+
+# 触发条件：仅手动触发
+on:
+  workflow_dispatch:
+
+# 工作流任务配置
+jobs:
+  build-and-run:
+    # 指定运行环境为 Windows 10 兼容的 Windows Server 2022
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      # 步骤1：拉取代码仓库到运行环境
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 步骤2：配置 MSVC 编译环境（移除无效的components参数）
+      - name: Set up MSVC Build Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64  # 仅指定架构，自动使用环境预装的VC BuildTools
+
+      # 步骤3：验证VC环境是否配置成功（确认cl.exe可用）
+      - name: Verify MSVC Environment
+        run: |
+          where cl.exe
+          cl.exe 2>&1 | findstr /i "Version"
+        shell: cmd
+        continue-on-error: true  # 即使验证失败也继续（避免阻断流程）
+
+      # 步骤4：设置 Python 3.8 环境
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+          architecture: 'x64'
+
+      # 步骤5：验证Python和pip版本
+      - name: Verify Python installation
+        run: |
+          python --version
+          pip --version
+
+      # 步骤5：安装 distutils 替代包（核心兼容步骤）
+      - name: Install distutils replacement for Python 3.8
+        run: |
+          # 安装官方维护的 setuptools 内置 distutils 兼容包
+          python -m pip install --upgrade pip setuptools
+          # 创建 distutils 兼容链接（关键：让代码能找到 distutils 模块）
+          python -c "import os, setuptools; 
+          distutils_path = os.path.join(os.path.dirname(setuptools.__file__), '_distutils');
+          target_path = os.path.join(os.path.dirname(os.__file__), 'distutils');
+          if not os.path.exists(target_path):
+              os.symlink(distutils_path, target_path);
+              print(f'Created symlink: {target_path} -> {distutils_path}')
+          else:
+              print('distutils symlink already exists')"
+        shell: pwsh
+
+      # 步骤6：验证 distutils 兼容性
+      - name: Verify distutils compatibility
+        run: |
+          python -c "import distutils; print('distutils imported successfully!')"
+          python -c "from distutils.core import setup; print('distutils.setup imported successfully!')"
+
+      # 步骤6：升级pip并安装Cython
+      - name: Install Cython
+        run: |
+          python -m pip install --upgrade pip
+          pip install cython doclayout_yolo
+
+      # 步骤7：验证Cython安装
+      - name: Verify Cython installation
+        run: python -c "import cython; print('Cython version:', cython.__version__)"
+
+      # 步骤7：验证doclayout_yolo安装
+      - name: Verify doclayout_yolo installation
+        run: python -c "import doclayout_yolo; print('doclayout_yolo version:', doclayout_yolo.__version__)"
+        
+      # 步骤8：执行目标Python脚本
+      - name: Run py2sec.py script
+        run: |
+          # 确认脚本路径存在
+          if (Test-Path "py2sec.py") {
+              Write-Host "py2sec.py found"
+          } else {
+              Write-Host "py2sec.py not found in current directory"
+              exit 1
+          }
+          # 确认test1.py路径存在
+          if (Test-Path "SplitSingleImage_doclayout_yolo.py") {
+              Write-Host "SplitSingleImage_doclayout_yolo.py found"
+          } else {
+              Write-Host "SplitSingleImage_doclayout_yolo.py not found"
+              exit 1
+          }
+          # 执行目标命令
+          python py2sec.py -f SplitSingleImage_doclayout_yolo.py -r
+
+          # 查找生成的PYD文件（打印路径方便调试）
+          Write-Host "=== Finding PYD files ==="
+          $pyd_files = Get-ChildItem -Recurse -Filter "*.pyd"
+          if ($pyd_files.Count -eq 0) {
+              Write-Error "No PYD files found after compilation!"
+              exit 1
+          }
+          # 打印所有PYD文件路径
+          foreach ($file in $pyd_files) {
+              Write-Host "Found PYD file: $($file.FullName)"
+          }
+          # 将PYD文件复制到统一目录（方便上传）
+          New-Item -ItemType Directory -Path "./pyd_output" -Force
+          Copy-Item -Path $pyd_files.FullName -Destination "./pyd_output/"
+          Write-Host "PYD files copied to ./pyd_output/"
+        shell: pwsh
+
+      # 步骤7：上传PYD文件作为构建产物（核心新增步骤）
+      - name: Upload PYD file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test1-pyd-file  # 产物名称（下载时显示）
+          path: ./pyd_output/*.pyd  # 要上传的PYD文件路径
+          retention-days: 30  # 产物保留30天（可按需调整）
+
+      # 步骤8：（可选）列出上传目录文件，确认上传内容
+      - name: List uploaded files
+        run: |
+          Get-ChildItem -Path ./pyd_output
+        shell: pwsh
