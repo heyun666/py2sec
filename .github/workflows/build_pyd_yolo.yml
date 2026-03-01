@@ -70,7 +70,7 @@ jobs:
       - name: Install Cython
         run: |
           python -m pip install --upgrade pip
-          pip install cython doclayout_yolo
+          pip install cython doclayout_yolo huggingface_hub
 
       # 步骤7：验证Cython安装
       - name: Verify Cython installation
