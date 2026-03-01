@@ -1,5 +1,5 @@
 # 工作流名称
-name: Run py2sec Script on Windows
+name: Run py2sec Script on Windows - yolo
 
 # 触发条件：仅手动触发
 on:
